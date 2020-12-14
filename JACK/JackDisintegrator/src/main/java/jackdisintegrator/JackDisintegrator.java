@@ -17,7 +17,8 @@ import org.jaudiolibs.jnajack.util.SimpleAudioClient;
 public class JackDisintegrator implements SimpleAudioClient.Processor
 {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
+    private static final int WINDOW_SIZE = 1000;
     private static Random r;
     /**
      * Sets the amplitude of the disintegrated samples
@@ -30,7 +31,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
     /**
      * Controls the average length of a run in the carrier sequence
      */
-    private static final double RUN_SIZE = 5;
+    private static final double RUN_MULT = 5;
     /**
      * The carrier sequence
      */
@@ -39,6 +40,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
     public static void main(String[] args) throws Exception
     {
         r = new Random();
+        bs = new BitSet();
 
         SimpleAudioClient client = SimpleAudioClient.create("disintegrator", new String[]
         {
@@ -75,7 +77,22 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         }
         
         // Populate bitset
+        int i = 0;
+        while (i < WINDOW_SIZE)
+        {   
+            boolean isSet = r.nextDouble() > CUTOFF;
+            long runLength = Math.round(r.nextGaussian() * RUN_MULT);
+            for (int j = 0; j < runLength; j++)
+            {
+                bs.set(i, isSet);
+                i++;
+            }
+        }
         
+//        if (DEBUG)
+//        {
+//            System.out.printf("BitSet:%s", bs.toString());
+//        }
 
         for (int channel = 0; channel < 2; channel++)
         {
