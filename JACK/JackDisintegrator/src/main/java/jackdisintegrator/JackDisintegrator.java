@@ -11,36 +11,50 @@ import java.util.Random;
 import org.jaudiolibs.jnajack.util.SimpleAudioClient;
 
 /**
+ * A simple audio disintegrator plugin
  *
  * @author daph hiebert <cepha.fish@gmail.com>
  */
 public class JackDisintegrator implements SimpleAudioClient.Processor
 {
 
-    private static final boolean DEBUG = false;
-//    private static final int WINDOW_SIZE = 500;
+    private static final boolean DEBUG = true;
+    /**
+     *
+     */
+    private static final int WINDOW_SIZE = 1000;
     private static Random r;
     /**
      * Sets the amplitude of the disintegrated samples
      */
-    private static final float LOW_MULTIPLIER = 0.0f;
+    private static final float LOW_MULTIPLIER = 0.5f;
     /**
-     * All random values generated above this value will set the bit in the carrier sequence
+     * All random values generated above this value will set the bit in the
+     * carrier sequence
      */
     private static final double CUTOFF = .3;
     /**
      * Controls the average length of a run in the carrier sequence
      */
-    private static final double RUN_MULT = 1000;
+    private static final double RUN_MULT = 100000;
+
+    private static final boolean SMOOTH = true;
+
+    private static final int SMOOTH_LENGTH = 200;
     /**
      * The carrier sequence
      */
     private static BitSet bs;
+    private static int smoothIndex;
+//    private static boolean isSmoothing;
+    private static boolean smoothDown;
+    private static boolean isSmoothing;
+    private static int bitIndex;
+    private static int windowIndex;
+    private static int bufferSize;
 
     public static void main(String[] args) throws Exception
     {
-        r = new Random();
-        bs = new BitSet();
 
         SimpleAudioClient client = SimpleAudioClient.create("disintegrator", new String[]
         {
@@ -66,48 +80,106 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
             System.err.println("setup called...");
         }
 
+        populate();
+
+        r = new Random();
+        bs = new BitSet();
+        smoothIndex = 0;
+        smoothDown = false;
+        isSmoothing = false;
+        bitIndex = 0;
+        windowIndex = 0;
+        bufferSize = buffersize;
     }
 
     @Override
     public void process(FloatBuffer[] inputs, FloatBuffer[] outputs)
     {
+        for (int channel = 0; channel < 2; channel++)
+        {
+            for (int x = 0; x < inputs[channel].capacity(); x++)
+            {
+                if (bitIndex == WINDOW_SIZE)
+                {
+                    populate();
+                    windowIndex = 0;
+                }
+                if (SMOOTH && bitIndex != 0 && bs.get(bitIndex - 1) != bs.get(bitIndex))
+                {
+                    isSmoothing = true;
+                    if (DEBUG)
+                    {
+                        System.err.println("smoothing called...");
+                    }
+                }
+
+                if (SMOOTH && isSmoothing && x != 0)
+                {
+
+                    smoothDown = !bs.get(windowIndex);
+                    isSmoothing = true;
+
+                    if (smoothDown)
+                    {
+                        smoothIndex = SMOOTH_LENGTH;
+                    }
+                    else
+                    {
+                        smoothIndex = 0;
+                    }
+
+                    outputs[channel].put(x, inputs[channel].get(x) * ((float) smoothIndex / (float) SMOOTH_LENGTH));
+
+                    if (smoothDown)
+                    {
+                        smoothIndex--;
+                    }
+                    else
+                    {
+                        smoothIndex++;
+                    }
+
+                    if (smoothIndex == 0 || smoothIndex == SMOOTH_LENGTH)
+                    {
+                        isSmoothing = false;
+                        if (DEBUG)
+                        {
+                            System.err.println("finished smoothing.");
+                        }
+                    }
+                }
+                else if (!isSmoothing)
+                {
+                    outputs[channel].put(x, inputs[channel].get(x) * (bs.get(x + (windowIndex * bufferSize)) ? LOW_MULTIPLIER : 1.0f));
+                }
+
+            }
+        }
+
+        windowIndex++;
+    }
+
+    private static void populate()
+    {
         if (DEBUG)
         {
-            System.err.println("process called...");
+            System.err.println("populating...");
         }
-        
-        // Populate bitset
-        int i = 0;
-        while (i < inputs[0].capacity())
-        {   
+        bitIndex = 0;
+        while (bitIndex < WINDOW_SIZE)
+        {
             boolean isSet = r.nextDouble() > CUTOFF;
             long runLength = Math.round(r.nextGaussian() * RUN_MULT);
             for (int j = 0; j < runLength; j++)
             {
-                bs.set(i, isSet);
-                i++;
+                bs.set(bitIndex, isSet);
+                bitIndex++;
             }
+            bitIndex++;
         }
-        
-//        if (DEBUG)
-//        {
-//            System.out.printf("BitSet:%s", bs.toString());
-//        }
-
-        for (int channel = 0; channel < 2; channel++)
+        if (DEBUG)
         {
-            int size = inputs[channel].capacity();
-            for (int x = 0; x < size; x++)
-            {
-                if (bs.get(x))
-                {
-                    outputs[channel].put(x, inputs[channel].get(x));
-                }
-                else
-                {
-                    outputs[channel].put(x, inputs[channel].get(x) * LOW_MULTIPLIER);
-                }
-            }
+            System.err.println("finished populating.");
         }
     }
 
