@@ -17,21 +17,21 @@ import org.jaudiolibs.jnajack.util.SimpleAudioClient;
 public class JackDisintegrator implements SimpleAudioClient.Processor
 {
 
-    private static final boolean DEBUG = true;
-    private static final int WINDOW_SIZE = 1000;
+    private static final boolean DEBUG = false;
+//    private static final int WINDOW_SIZE = 500;
     private static Random r;
     /**
      * Sets the amplitude of the disintegrated samples
      */
-    private static final double LOW_MULTIPLIER = 0.2;
+    private static final float LOW_MULTIPLIER = 0.0f;
     /**
      * All random values generated above this value will set the bit in the carrier sequence
      */
-    private static final double CUTOFF = .5;
+    private static final double CUTOFF = .3;
     /**
      * Controls the average length of a run in the carrier sequence
      */
-    private static final double RUN_MULT = 5;
+    private static final double RUN_MULT = 1000;
     /**
      * The carrier sequence
      */
@@ -78,7 +78,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         
         // Populate bitset
         int i = 0;
-        while (i < WINDOW_SIZE)
+        while (i < inputs[0].capacity())
         {   
             boolean isSet = r.nextDouble() > CUTOFF;
             long runLength = Math.round(r.nextGaussian() * RUN_MULT);
@@ -99,7 +99,14 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
             int size = inputs[channel].capacity();
             for (int x = 0; x < size; x++)
             {
-
+                if (bs.get(x))
+                {
+                    outputs[channel].put(x, inputs[channel].get(x));
+                }
+                else
+                {
+                    outputs[channel].put(x, inputs[channel].get(x) * LOW_MULTIPLIER);
+                }
             }
         }
     }
@@ -107,6 +114,6 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
     @Override
     public void shutdown()
     {
-        System.out.println("Audio Source shutdown");
+        System.out.println("Audio Processor shutdown");
     }
 }
