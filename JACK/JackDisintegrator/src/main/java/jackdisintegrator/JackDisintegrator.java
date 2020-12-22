@@ -18,29 +18,33 @@ import org.jaudiolibs.jnajack.util.SimpleAudioClient;
 public class JackDisintegrator implements SimpleAudioClient.Processor
 {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     /**
      *
      */
-    private static final int WINDOW_SIZE = 1000;
+    private static final int WINDOW_SIZE = 10000;
+
+    private static final boolean RANDOMIZED = false;
+
+    private static final int RUN_LENGTH = 10000;
     private static Random r;
     /**
      * Sets the amplitude of the disintegrated samples
      */
-    private static final float LOW_MULTIPLIER = 0.5f;
+    private static final float LOW_MULTIPLIER = 0.0f;
     /**
      * All random values generated above this value will set the bit in the
      * carrier sequence
      */
-    private static final double CUTOFF = .3;
+    private static final double CUTOFF = .2;
     /**
      * Controls the average length of a run in the carrier sequence
      */
-    private static final double RUN_MULT = 100000;
+    private static final double RUN_MULT = 1000;
 
-    private static final boolean SMOOTH = true;
+    private static final boolean SMOOTH = false;
 
-    private static final int SMOOTH_LENGTH = 200;
+    private static final int SMOOTH_LENGTH = 100;
     /**
      * The carrier sequence
      */
@@ -78,7 +82,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         {
             System.err.println("setup called...");
         }
-        
+
         r = new Random();
         bs = new BitSet();
         smoothIndex = 0;
@@ -87,7 +91,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         bitIndex = 0;
         windowIndex = 0;
         bufferSize = buffersize;
-        
+
         populate();
     }
 
@@ -106,18 +110,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
                 if (SMOOTH && bitIndex != 0 && bs.get(bitIndex - 1) != bs.get(bitIndex))
                 {
                     isSmoothing = true;
-                    if (DEBUG)
-                    {
-                        System.err.println("smoothing called...");
-                    }
-                }
-
-                if (SMOOTH && isSmoothing && x != 0)
-                {
-
-                    smoothDown = !bs.get(windowIndex);
-                    isSmoothing = true;
-
+                    smoothDown = !bs.get(bitIndex);
                     if (smoothDown)
                     {
                         smoothIndex = SMOOTH_LENGTH;
@@ -127,7 +120,18 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
                         smoothIndex = 0;
                     }
 
-                    outputs[channel].put(x, inputs[channel].get(x) * ((float) smoothIndex / (float) SMOOTH_LENGTH));
+                    if (DEBUG)
+                    {
+                        System.err.println("smoothing called...");
+                    }
+                }
+
+                if (SMOOTH && isSmoothing && x != 0)
+                {
+
+                    float mult = (float) smoothIndex / (float) SMOOTH_LENGTH;
+
+                    outputs[channel].put(x, inputs[channel].get(x) * mult + LOW_MULTIPLIER * inputs[channel].get(x));
 
                     if (smoothDown)
                     {
@@ -143,7 +147,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
                         isSmoothing = false;
                         if (DEBUG)
                         {
-                            System.err.println("finished smoothing.");
+                            System.err.println("smoothing finished.");
                         }
                     }
                 }
@@ -151,8 +155,9 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
                 {
                     outputs[channel].put(x, inputs[channel].get(x) * (bs.get(x + (windowIndex * bufferSize)) ? LOW_MULTIPLIER : 1.0f));
                 }
-
+                bitIndex++;
             }
+
         }
 
         windowIndex++;
@@ -167,15 +172,36 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         bitIndex = 0;
         while (bitIndex < WINDOW_SIZE)
         {
-            boolean isSet = r.nextDouble() > CUTOFF;
-            long runLength = Math.round(r.nextGaussian() * RUN_MULT);
-            for (int j = 0; j < runLength; j++)
+            if (RANDOMIZED)
             {
-                bs.set(bitIndex, isSet);
-                bitIndex++;
+                boolean isSet = r.nextDouble() > CUTOFF;
+                long runLength = Math.round(r.nextGaussian() * RUN_MULT);
+                for (int j = 0; j < runLength; j++)
+                {
+                    bs.set(bitIndex, isSet);
+                    bitIndex++;
+                }
             }
-            bitIndex++;
+            else if (bitIndex == 0)
+            {
+                bs.set(bitIndex, bitIndex + RUN_LENGTH);
+                bitIndex += RUN_LENGTH;
+            }
+            else if (WINDOW_SIZE > bitIndex + RUN_LENGTH)
+            {
+                bs.set(bitIndex, bitIndex + RUN_LENGTH, !bs.get(bitIndex - 1));
+                bitIndex += RUN_LENGTH;
+            }
+            else
+            {
+                bs.set(bitIndex, bitIndex + (WINDOW_SIZE - bitIndex), !bs.get(bitIndex - 1));
+                bitIndex += (WINDOW_SIZE - bitIndex);
+            }
+
         }
+
+        bitIndex = 0;
+
         if (DEBUG)
         {
             System.err.println("finished populating.");
