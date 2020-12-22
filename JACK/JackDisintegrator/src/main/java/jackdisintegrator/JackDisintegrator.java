@@ -46,7 +46,6 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
      */
     private static BitSet bs;
     private static int smoothIndex;
-//    private static boolean isSmoothing;
     private static boolean smoothDown;
     private static boolean isSmoothing;
     private static int bitIndex;
@@ -79,9 +78,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         {
             System.err.println("setup called...");
         }
-
-        populate();
-
+        
         r = new Random();
         bs = new BitSet();
         smoothIndex = 0;
@@ -90,6 +87,8 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         bitIndex = 0;
         windowIndex = 0;
         bufferSize = buffersize;
+        
+        populate();
     }
 
     @Override
