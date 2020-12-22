@@ -151,7 +151,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
                         }
                     }
                 }
-                else if (!isSmoothing)
+                else if (!SMOOTH)
                 {
                     outputs[channel].put(x, inputs[channel].get(x) * (bs.get(x + (windowIndex * bufferSize)) ? LOW_MULTIPLIER : 1.0f));
                 }
