@@ -19,14 +19,23 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
 {
 
     private static final boolean DEBUG = false;
+
     /**
-     *
+     * Generates a simple sine wave that the disintegrator acts on instead of an
+     * input stream.
      */
+    private static final boolean SINE = true;
+
+    /**
+     * The frequency in hertz of the sine wave.
+     */
+    private static final int SINE_FREQ = 500;
+
     private static final int WINDOW_SIZE = 10000;
 
-    private static final boolean RANDOMIZED = false;
+    private static final boolean RANDOMIZED = true;
 
-    private static final int RUN_LENGTH = 10000;
+    private static final int RUN_LENGTH = 1000;
     private static Random r;
     /**
      * Sets the amplitude of the disintegrated samples
@@ -55,19 +64,35 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
     private static int bitIndex;
     private static int windowIndex;
     private static int bufferSize;
+    private static float sampleRate;
+    private float[] data;
 
     public static void main(String[] args) throws Exception
     {
 
-        SimpleAudioClient client = SimpleAudioClient.create("disintegrator", new String[]
+        if (SINE)
         {
-            "input-L", "input-R"
-        },
-                new String[]
-                {
-                    "output-L", "output-R"
-                }, true, true, new JackDisintegrator());
-        client.activate();
+            SimpleAudioClient client = SimpleAudioClient.create("disintegrator-sine", new String[0],
+                    new String[]
+                    {
+                        "output-L", "output-R"
+                    }, true, true, new JackDisintegrator());
+
+            client.activate();
+        }
+        else
+        {
+            SimpleAudioClient client = SimpleAudioClient.create("disintegrator", new String[]
+            {
+                "input-L", "input-R"
+            },
+                    new String[]
+                    {
+                        "output-L", "output-R"
+                    }, true, true, new JackDisintegrator());
+
+            client.activate();
+        }
 
         while (true)
         {
@@ -91,8 +116,17 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         bitIndex = 0;
         windowIndex = 0;
         bufferSize = buffersize;
-
+        sampleRate = samplerate;
+        data = new float[WINDOW_SIZE];
         populate();
+
+        if (SINE)
+        {
+            for (int i = 0; i < WINDOW_SIZE; i++)
+            {
+                data[i] = (float) (0.5 * Math.sin(((double) i / (double) WINDOW_SIZE) * Math.PI * 2.0));
+            }
+        }
     }
 
     @Override
