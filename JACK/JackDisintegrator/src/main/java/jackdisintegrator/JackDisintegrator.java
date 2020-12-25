@@ -94,10 +94,10 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
             client.activate();
         }
 
-        while (true)
-        {
+//        while (true)
+//        {
             Thread.sleep(1000);
-        }
+//        }
     }
 
     @Override
@@ -124,7 +124,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
         {
             for (int i = 0; i < WINDOW_SIZE; i++)
             {
-                data[i] = (float) (0.5 * Math.sin(((double) i / (double) WINDOW_SIZE) * Math.PI * 2.0));
+                data[i] = (float) (0.5 * Math.sin(((double) i / (double) WINDOW_SIZE) * Math.PI * 2.0 * SINE_FREQ / sampleRate));
             }
         }
     }
@@ -132,6 +132,18 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
     @Override
     public void process(FloatBuffer[] inputs, FloatBuffer[] outputs)
     {
+        // generate the sine curve
+        if (SINE)
+        {
+            FloatBuffer left = inputs[0];
+            FloatBuffer right = inputs[1];
+            int size = left.capacity();
+            for (int i = 0; i < size; i++)
+            {
+                left.put(i, data[i]);
+                right.put(i, data[i]);
+            }
+        }
         for (int channel = 0; channel < 2; channel++)
         {
             for (int x = 0; x < inputs[channel].capacity(); x++)
@@ -189,6 +201,7 @@ public class JackDisintegrator implements SimpleAudioClient.Processor
                 {
                     outputs[channel].put(x, inputs[channel].get(x) * (bs.get(x + (windowIndex * bufferSize)) ? LOW_MULTIPLIER : 1.0f));
                 }
+
                 bitIndex++;
             }
 
