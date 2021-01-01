@@ -17,6 +17,20 @@ import org.jaudiolibs.jnajack.util.SimpleAudioClient;
 public class JackModulator implements SimpleAudioClient.Processor
 {
 
+    public static void main(String[] args) throws Exception
+    {
+        SimpleAudioClient client = SimpleAudioClient.create("modulator", new String[]
+        {
+             "carrier-L", "carrier-R", "modulator-L", "modulator-R"
+        },
+                new String[]
+                {
+                    "output-L", "output-R"
+                }, true, true, new JackModulator());
+
+        client.activate();
+    }
+
     @Override
     public void setup(float samplerate, int buffersize)
     {
